@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinTrack - Personal Finance Tracker</title>
+    <link href="{{ url_for('static', filename='fintrack.css') }}" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container header-content">
+            <div class="logo">
+                <span class="logo-icon">💰</span>FinTrack
+            </div>
+
+            <div class="user-actions">
+                <div class="notification-container">
+                    <div class="notification-icon" id="notification-icon">🔔</div>
+                    <div class="notification-popup" id="notification-popup">
+                        <div class="notification-content">
+                            <div class="notification-header">
+                                <span class="notification-title">⚠️ Expense Alert</span>
+                                <button class="notification-close">&times;</button>
+                            </div>
+                            <div class="notification-body">
+                                <p>Your expenses have exceeded 60% of your income!</p>
+                                <div class="expense-details">
+                                    <div class="expense-metric">
+                                        <span class="metric-label">Monthly Income:</span>
+                                        <span class="metric-value" id="notification-income">$0</span>
+                                    </div>
+                                    <div class="expense-metric">
+                                        <span class="metric-label">Monthly Expenses:</span>
+                                        <span class="metric-value" id="notification-expenses">$0</span>
+                                    </div>
+                                    <div class="expense-metric">
+                                        <span class="metric-label">Expense Percentage:</span>
+                                        <span class="metric-value" id="notification-percentage">0%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+                <div class="user-avatar">{{ user[3][0] }}{{ user[4][0] }}</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container hero-content">
+            <div class="hero-text">
+                <h1>Welcome back, {{ user[3] }}!</h1>
+                <p>Track your spending, manage your budget, and reach your financial goals with FinTrack.</p>
+                <a href="#" class="btn btn-secondary" id="heroAddTransactionBtn">Add Transaction</a>
+            </div>
+            <div class="hero-image">
+                <script src="https://cdn.tailwindcss.com"></script>
+                <div class="w-full max-w-md z-10" id="elixir-panel">
+                    <div class="rounded-2xl shadow-lg border-purple-300 bg-white p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 id="level-label" class="text-2xl font-bold text-purple-800 flex items-center gap-2">
+                                🏠 Townhall Level 1
+                            </h2>
+                        </div>
+
+                        <p class="text-sm text-purple-700 mb-2 font-medium">
+                            Elixir Meter: <span id="elixir-percent" class="font-bold">0%</span>
+                        </p>
+                        <div class="relative h-4 rounded-full bg-purple-300 overflow-hidden">
+                            <div id="progress-bar" class="absolute h-full bg-purple-600 transition-all duration-300" style="width: 0%;"></div>
+                        </div>
+
+                        <div class="mt-6 text-center text-purple-800 text-sm">
+                            Keep saving to level up! Your points increase with your savings rate.
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                    let points = 0;
+                    const threshold = 10;
+                    let lastUpdateTime = null;
+
+                    function getEmoji(level) {
+                        if (level < 3) return '🏠';
+                        if (level < 5) return '🏡';
+                        if (level < 7) return '🏘';
+                        if (level < 9) return '🏯';
+                        return '🏰';
+                    }
+
+                    function updatePointsDisplay() {
+                        const level = Math.floor(points / threshold) + 1;
+                        const percentage = ((points % threshold) / threshold) * 100;
+
+                        document.getElementById('level-label').innerHTML = `${getEmoji(level)} Townhall Level ${level}`;
+                        document.getElementById('elixir-percent').textContent = `${Math.floor(percentage)}%`;
+                        document.getElementById('progress-bar').style.width = `${percentage}%`;
+                    }
+
+                    async function updatePointsFromSavingsRate() {
+                        try {
+                            const response = await fetch('/get_user_data');
+                            const data = await response.json();
+                            
+                            if (data.error) {
+                                console.error('Error getting user data:', data.error);
+                                return;
+                            }
+
+                            const savingsRate = parseFloat(data.savings_rate);
+                            // Calculate points: 1 point for every 30% of savings rate
+                            const newPoints = Math.floor(savingsRate / 30);
+                            
+                            // Update points immediately without time check
+                            points = newPoints;
+                            updatePointsDisplay();
+                            
+                            // Update last update time for future checks
+                            localStorage.setItem('lastPointsUpdate', new Date().getTime().toString());
+                        } catch (error) {
+                            console.error('Error updating points:', error);
+                        }
+                    }
+
+                    // Check points every hour
+                    setInterval(updatePointsFromSavingsRate, 60 * 60 * 1000);
+                    
+                    // Initial check
+                    document.addEventListener('DOMContentLoaded', updatePointsFromSavingsRate);
+                </script>
+            </div>
+        </div>
+    </section>
+
+    <!-- Dashboard Cards -->
+    <section class="container">
+        <div class="dashboard">
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <span class="card-title">Total Balance</span>
+                    <div class="card-icon bg-blue">💵</div>
+                </div>
+                <div class="card-value">
+                    ${{ user[5] }}
+                </div>
+                <div class="card-change positive">↑ 2.3% from last month</div>
+            </div>
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <span class="card-title">Monthly Income</span>
+                    <div class="card-icon bg-green">📈</div>
+                </div>
+                <div class="card-value">
+                    ${{ user[6] }}
+                </div>
+                <div class="card-change positive">↑ 5.1% from last month</div>
+            </div>
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <span class="card-title">Monthly Expenses</span>
+                    <div class="card-icon bg-orange">📉</div>
+                </div>
+                <div class="card-value">${{ user[7] }}</div>
+                <div class="card-change negative">↑ 1.8% from last month</div>
+            </div>
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <span class="card-title">Savings Rate</span>
+                    <div class="card-icon bg-red">💰</div>
+                </div>
+                <div class="card-value">{{ user[8] }}%</div>
+                <div class="card-change positive">↑ 3.2% from last month</div>
+            </div>
+        </div>
+    </section>
+
+<!-- Charts -->
+
+
+<!-- Update the chart script -->
+<script>
+async function drawCharts() {
+    try {
+        // Fetch user data from accounts.csv
+        const response = await fetch('/get_user_data');
+        const userData = await response.json();
+        
+        if (userData.error) {
+            console.error('Error fetching user data:', userData.error);
+            return;
+        }
+
+        // Calculate monthly data based on user's income and expenses
+        const monthlyIncome = parseFloat(userData.monthly_income);
+        const monthlyExpenses = parseFloat(userData.monthly_expenses);
+        const savingsRate = parseFloat(userData.savings_rate);
+
+        // Generate data for the last 6 months
+        const months = [];
+        const incomeData = [];
+        const expenseData = [];
+        
+        const currentDate = new Date();
+        for (let i = 5; i >= 0; i--) {
+            const date = new Date(currentDate);
+            date.setMonth(date.getMonth() - i);
+            months.push(date.toLocaleString('default', { month: 'short' }));
+            
+            // Add some variation to make the data more realistic
+            const incomeVariation = Math.random() * 0.1 - 0.05; // ±5% variation
+            const expenseVariation = Math.random() * 0.1 - 0.05;
+            
+            incomeData.push(monthlyIncome * (1 + incomeVariation));
+            expenseData.push(monthlyExpenses * (1 + expenseVariation));
+        }
+
+        // Calculate spending categories based on monthly expenses
+        const spendingCategories = {
+            'Housing': monthlyExpenses * 0.4,
+            'Food': monthlyExpenses * 0.2,
+            'Transportation': monthlyExpenses * 0.15,
+            'Entertainment': monthlyExpenses * 0.1,
+            'Utilities': monthlyExpenses * 0.1,
+            'Other': monthlyExpenses * 0.05
+        };
+
+        // Income vs Expenses Chart
+        const incomeExpensesCtx = document.getElementById('incomeExpensesChart');
+        if (!incomeExpensesCtx) return;
+
+        if (window.incomeExpensesChart) {
+            window.incomeExpensesChart.destroy();
+        }
+
+        window.incomeExpensesChart = new Chart(incomeExpensesCtx, {
+            type: 'bar',
+            data: {
+                labels: months,
+                datasets: [
+                    {
+                        label: 'Monthly Income',
+                        data: incomeData,
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderColor: 'rgb(16, 185, 129)',
+                        borderWidth: 2,
+                        borderRadius: 6,
+                        hoverBackgroundColor: 'rgb(16, 185, 129)',
+                        barThickness: 20
+                    },
+                    {
+                        label: 'Monthly Expenses',
+                        data: expenseData,
+                        backgroundColor: 'rgba(245, 158, 11, 0.7)',
+                        borderColor: 'rgb(245, 158, 11)',
+                        borderWidth: 2,
+                        borderRadius: 6,
+                        hoverBackgroundColor: 'rgb(245, 158, 11)',
+                        barThickness: 20
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20,
+                            font: {
+                                size: 12,
+                                family: "'Inter', sans-serif"
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        titleColor: '#1f2937',
+                        bodyColor: '#1f2937',
+                        borderColor: '#e5e7eb',
+                        borderWidth: 1,
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                return `$${context.raw.toLocaleString()}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: '#e5e7eb',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: '#6b7280',
+                            font: {
+                                size: 12
+                            },
+                            callback: function(value) {
+                                return '$' + value.toLocaleString();
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: '#6b7280',
+                            font: {
+                                size: 12
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Spending Categories Chart
+        const spendingCategoriesCtx = document.getElementById('spendingCategoriesChart');
+        if (!spendingCategoriesCtx) return;
+
+        if (window.spendingCategoriesChart) {
+            window.spendingCategoriesChart.destroy();
+        }
+
+        window.spendingCategoriesChart = new Chart(spendingCategoriesCtx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(spendingCategories),
+                datasets: [{
+                    data: Object.values(spendingCategories),
+                    backgroundColor: [
+                        'rgba(37, 99, 235, 0.8)',
+                        'rgba(16, 185, 129, 0.8)',
+                        'rgba(245, 158, 11, 0.8)',
+                        'rgba(239, 68, 68, 0.8)',
+                        'rgba(139, 92, 246, 0.8)',
+                        'rgba(107, 114, 128, 0.8)'
+                    ],
+                    borderWidth: 0,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20,
+                            font: {
+                                size: 12,
+                                family: "'Inter', sans-serif"
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        titleColor: '#1f2937',
+                        bodyColor: '#1f2937',
+                        borderColor: '#e5e7eb',
+                        borderWidth: 1,
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.raw;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${context.label}: $${value.toLocaleString()} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Error drawing charts:', error);
+    }
+}
+
+// Initialize charts when the page loads
+document.addEventListener('DOMContentLoaded', drawCharts);
+
+// Redraw charts when window is resized
+window.addEventListener('resize', drawCharts);
+</script>
+
+<!-- Recent Transactions -->
+<section class="container">
+  <div class="transactions">
+      <div class="transactions-header">
+          <div class="transactions-title">Recent Transactions</div>
+          <div>
+              <a href="#" class="btn" id="transactionsAddBtn">Add Transaction</a>
+          </div>
+      </div>
+      <table class="transactions-table" id="transactionsTable">
+          <thead>
+              <tr>
+                  <th>Transaction</th>
+                  <th>Category</th>
+                  <th>Date</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+              </tr>
+          </thead>
+          <tbody id="transactionsBody">
+              <!-- Transactions will be loaded here dynamically -->
+          </tbody>
+      </table>
+  </div>
+</section>
+
+
+    <!-- Budget Goals -->
+    <section class="container">
+        <div class="goals">
+            <div class="goals-header">
+                <div class="goals-title">Budget Goals</div>
+                <a href="#" class="btn">Add Goal</a>
+            </div>
+            <div class="goals-grid">
+                <div class="goal-card">
+                    <div class="goal-icon bg-blue">✈️</div>
+                    <h3 class="goal-title">Vacation Fund</h3>
+                    <div class="goal-amount">$3,500 / $5,000</div>
+                    <div class="goal-progress">
+                        <div class="progress-bar bg-blue" style="width: 70%;"></div>
+                    </div>
+                    <div class="goal-meta">
+                        <span>70% complete</span>
+                        <span>Due: Aug 2025</span>
+                    </div>
+                </div>
+                <div class="goal-card">
+                    <div class="goal-icon bg-green">🚗</div>
+                    <h3 class="goal-title">New Car</h3>
+                    <div class="goal-amount">$12,000 / $30,000</div>
+                    <div class="goal-progress">
+                        <div class="progress-bar bg-green" style="width: 40%;"></div>
+                    </div>
+                    <div class="goal-meta">
+                        <span>40% complete</span>
+                        <span>Due: Dec 2025</span>
+                    </div>
+                </div>
+                <div class="goal-card">
+                    <div class="goal-icon bg-orange">🏠</div>
+                    <h3 class="goal-title">Home Renovation</h3>
+                    <div class="goal-amount">$5,200 / $8,000</div>
+                    <div class="goal-progress">
+                        <div class="progress-bar bg-orange" style="width: 65%;"></div>
+                    </div>
+                    <div class="goal-meta">
+                        <span>65% complete</span>
+                        <span>Due: Sep 2025</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container footer-content">
+            <div class="footer-links">
+                <ul>
+                    <li><a href="#">About</a></li>
+                    <li><a href="#">Support</a></li>
+                    <li><a href="#">Privacy</a></li>
+                    <li><a href="#">Terms</a></li>
+                </ul>
+            </div>
+            <div class="copyright">
+                ©️ 2025 FinTrack. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Transaction Modal
+        const modalOverlay = document.createElement('div');
+        modalOverlay.className = 'modal-overlay';
+        modalOverlay.innerHTML = `
+          <div class="modal">
+            <div class="modal-header">
+              <h3 class="modal-title">Add Transaction</h3>
+              <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="transaction-types">
+                <div class="transaction-type expense-type active" data-type="expense">Expense</div>
+                <div class="transaction-type income-type" data-type="income">Income</div>
+              </div>
+              <form id="transactionForm" action='/update_transactions'>
+                <div class="form-amount">
+                  <label for="amount">Amount</label>
+                  <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control" id="amount" required>
+                  </div>
+                </div>
+                <div class="form-description">
+                  <label for="description">Description</label>
+                  <input type="text" class="form-control" id="description" required>
+                </div>
+                <div class="form-category">
+                  <label for="category">Category</label>
+                  <div id="category-container">
+                    <select class="form-select" id="category" required>
+                      <option value="">Select a category</option>
+                      <option value="Groceries" class="expense-option">Groceries</option>
+                      <option value="Dining" class="expense-option">Dining</option>
+                      <option value="Housing" class="expense-option">Housing</option>
+                      <option value="Transportation" class="expense-option">Transportation</option>
+                      <option value="Entertainment" class="expense-option">Entertainment</option>
+                      <option value="Income" class="income-option">Other</option>
+                    </select>
+                    <div id="income-category-display" style="display: none;">
+                      <div class="form-control" style="background-color: #f3f4f6; color: #374151;">
+                        Income
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-date">
+                  <label for="date">Date</label>
+                  <input type="date" class="form-control" id="date" required>
+                </div>
+              </form>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-cancel">Cancel</button>
+              <button class="btn" id="saveTransaction">Save</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modalOverlay);
+
+        // Show modal when Add Transaction buttons are clicked
+        document.getElementById('heroAddTransactionBtn').addEventListener('click', () => {
+          modalOverlay.classList.add('active');
+        });
+
+        document.getElementById('transactionsAddBtn').addEventListener('click', () => {
+          modalOverlay.classList.add('active');
+        });
+
+        // Close modal when close button or cancel button is clicked
+        modalOverlay.querySelector('.modal-close').addEventListener('click', () => {
+          modalOverlay.classList.remove('active');
+        });
+
+        modalOverlay.querySelector('.btn-cancel').addEventListener('click', () => {
+          modalOverlay.classList.remove('active');
+        });
+
+        // Close modal when clicking outside
+        modalOverlay.addEventListener('click', (e) => {
+          if (e.target === modalOverlay) {
+            modalOverlay.classList.remove('active');
+          }
+        });
+
+        // Handle transaction type selection
+        const transactionTypes = document.querySelectorAll('.transaction-type');
+        const categorySelect = document.getElementById('category');
+        const incomeCategoryDisplay = document.getElementById('income-category-display');
+        const expenseOptions = document.querySelectorAll('.expense-option');
+        const incomeOption = document.querySelector('.income-option');
+
+        function updateCategoryOptions(type) {
+            if (type === 'income') {
+                // Hide select and show fixed income display
+                categorySelect.style.display = 'none';
+                incomeCategoryDisplay.style.display = 'block';
+                // Set hidden value
+                categorySelect.value = 'Income';
+            } else {
+                // Show select and hide fixed income display
+                categorySelect.style.display = 'block';
+                incomeCategoryDisplay.style.display = 'none';
+                // Reset to default
+                categorySelect.value = '';
+            }
+        }
+
+        transactionTypes.forEach(type => {
+            type.addEventListener('click', () => {
+                transactionTypes.forEach(t => t.classList.remove('active'));
+                type.classList.add('active');
+                updateCategoryOptions(type.dataset.type);
+            });
+        });
+
+        // Initialize with expense type
+        updateCategoryOptions('expense');
+
+        // Function to format date
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        // Function to get category icon
+        function getCategoryIcon(category) {
+            const icons = {
+                'Groceries': '🛒',
+                'Dining': '🍽️',
+                'Housing': '🏠',
+                'Transportation': '🚗',
+                'Entertainment': '🎮',
+                'Income': '💼',
+                'billing': '📝'
+            };
+            return icons[category] || '💰';
+        }
+
+        // Function to get category color
+        function getCategoryColor(category) {
+            const colors = {
+                'Groceries': 'bg-green',
+                'Dining': 'bg-red',
+                'Housing': 'bg-orange',
+                'Transportation': 'bg-blue',
+                'Entertainment': 'bg-purple',
+                'Income': 'bg-green',
+                'billing': 'bg-red'
+            };
+            return colors[category] || 'bg-gray';
+        }
+
+        // Function to load transactions
+        async function loadTransactions() {
+            try {
+                const response = await fetch('/get_transactions');
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Error loading transactions:', data.error);
+                    return;
+                }
+
+                const tbody = document.getElementById('transactionsBody');
+                tbody.innerHTML = ''; // Clear existing transactions
+
+                data.transactions.forEach(transaction => {
+                    const row = document.createElement('tr');
+                    const amount = parseFloat(transaction.amount);
+                    const isIncome = amount >= 0;
+                    
+                    row.innerHTML = `
+                        <td>
+                            <div class="transaction-info">
+                                <div class="transaction-icon ${getCategoryColor(transaction.CATEGORY)}">
+                                    ${getCategoryIcon(transaction.CATEGORY)}
+                                </div>
+                                <div class="transaction-details">
+                                    <h4>${transaction.TRANS}</h4>
+                                    <p>${transaction.CATEGORY}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td>${transaction.CATEGORY}</td>
+                        <td>${formatDate(transaction.date)}</td>
+                        <td>${isIncome ? '+' : ''}$${Math.abs(amount).toFixed(2)}</td>
+                        <td><span class="status-completed">Completed</span></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error loading transactions:', error);
+            }
+        }
+
+        // Update the form submission handler
+        document.getElementById('saveTransaction').addEventListener('click', async () => {
+            const form = document.getElementById('transactionForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const type = document.querySelector('.transaction-type.active').dataset.type;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const description = document.getElementById('description').value;
+            const category = document.getElementById('category').value;
+            const date = document.getElementById('date').value;
+
+            // Send transaction to backend
+            try {
+                const response = await fetch('/add_transaction', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        description: description,
+                        category: category,
+                        date: date,
+                        amount: type === 'income' ? amount : -amount
+                    })
+                });
+
+                const data = await response.json();
+                if (data.error) {
+                    console.error('Error adding transaction:', data.error);
+                    return;
+                }
+
+                // Reload transactions
+                await loadTransactions();
+
+                // Update dashboard cards
+                updateDashboardCards(type, amount);
+
+                // Update points immediately after transaction
+                await updatePointsFromSavingsRate();
+
+                // Close modal and reset form
+                modalOverlay.classList.remove('active');
+                form.reset();
+            } catch (error) {
+                console.error('Error adding transaction:', error);
+            }
+        });
+
+        // Load transactions when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTransactions();
+            updatePointsFromSavingsRate(); // Initial points update
+        });
+
+        // Function to update dashboard cards
+        function updateDashboardCards(type, amount) {
+            const totalBalance = document.querySelector('.dashboard-card:nth-child(1) .card-value');
+            const monthlyIncome = document.querySelector('.dashboard-card:nth-child(2) .card-value');
+            const monthlyExpenses = document.querySelector('.dashboard-card:nth-child(3) .card-value');
+            const savingsRate = document.querySelector('.dashboard-card:nth-child(4) .card-value');
+
+            const currentBalance = parseFloat(totalBalance.textContent.replace('$', '').replace(',', ''));
+            const currentIncome = parseFloat(monthlyIncome.textContent.replace('$', '').replace(',', ''));
+            const currentExpenses = parseFloat(monthlyExpenses.textContent.replace('$', '').replace(',', ''));
+
+            let newBalance, newIncome, newExpenses, newSavingsRate;
+            
+            if (type === 'income') {
+                newBalance = currentBalance + amount;
+                newIncome = currentIncome + amount;
+                newExpenses = currentExpenses;
+                
+                totalBalance.textContent = `$${newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                monthlyIncome.textContent = `$${newIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+            } else {
+                newBalance = currentBalance - amount;
+                newIncome = currentIncome;
+                newExpenses = currentExpenses + amount;
+
+                totalBalance.textContent = `$${newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                monthlyExpenses.textContent = `$${newExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+            }
+
+            // Now calculate savings rate using updated values
+            newSavingsRate = ((newIncome - newExpenses) / newIncome * 100).toFixed(1);
+            savingsRate.textContent = `${newSavingsRate}%`;
+            
+            // Send updated data to backend
+            fetch('/update_finance', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    totalBalance: newBalance,
+                    monthlyIncome: newIncome,
+                    monthlyExpenses: newExpenses,
+                    savingsRate: newSavingsRate,
+                    username: '{{ session.get("username") }}'  // Jinja will inject the session username
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+
+        // Add Goal button functionality
+        document.querySelector('.goals .btn').addEventListener('click', () => {
+            const goalName = prompt('Enter goal name:');
+            if (!goalName) return;
+
+            const targetAmount = parseFloat(prompt('Enter target amount:'));
+            if (isNaN(targetAmount)) return;
+
+            const dueDate = prompt('Enter due date (YYYY-MM):');
+            if (!dueDate) return;
+
+            const goalsGrid = document.querySelector('.goals-grid');
+            const newGoal = document.createElement('div');
+            newGoal.className = 'goal-card';
+            newGoal.innerHTML = `
+                <div class="goal-icon bg-blue">🎯</div>
+                <h3 class="goal-title">${goalName}</h3>
+                <div class="goal-amount">$0 / $${targetAmount.toLocaleString()}</div>
+                <div class="goal-progress">
+                    <div class="progress-bar bg-blue" style="width: 0%;"></div>
+                </div>
+                <div class="goal-meta">
+                    <span>0% complete</span>
+                    <span>Due: ${dueDate}</span>
+                </div>
+            `;
+            goalsGrid.appendChild(newGoal);
+        });
+
+        // Financial Advisor Chatbot Implementation
+        (function(){if(!window.chatbase||window.chatbase("getState")!=="initialized"){window.chatbase=(...arguments)=>{if(!window.chatbase.q){window.chatbase.q=[]}window.chatbase.q.push(arguments)};window.chatbase=new Proxy(window.chatbase,{get(target,prop){if(prop==="q"){return target.q}return(...args)=>target(prop,...args)}})}const onLoad=function(){const script=document.createElement("script");script.src="https://www.chatbase.co/embed.min.js";script.id="N8hpFCHUbOMg5qEw-y04v";script.domain="www.chatbase.co";document.body.appendChild(script)};if(document.readyState==="complete"){onLoad()}else{window.addEventListener("load",onLoad)}})();
+        
+    </script>
+    
+
+<script>
+function checkExpenseNotification() {
+    fetch('/check_expense_notification')
+        .then(response => response.json())
+        .then(data => {
+            const popup = document.getElementById('notification-popup');
+            const icon = document.getElementById('notification-icon');
+            
+            if (data.error) {
+                console.error('Error checking notification:', data.error);
+                return;
+            }
+
+            if (data.show_notification) {
+                // Update notification content
+                document.getElementById('notification-income').textContent = 
+                    `$${data.monthly_income.toLocaleString()}`;
+                document.getElementById('notification-expenses').textContent = 
+                    `$${data.monthly_expenses.toLocaleString()}`;
+                document.getElementById('notification-percentage').textContent = 
+                    `${data.expense_percentage}%`;
+                
+                // Show notification
+                popup.style.display = 'block';
+                icon.style.color = '#ef4444'; // Red color for alert
+            } else {
+                popup.style.display = 'none';
+                icon.style.color = ''; // Reset color
+            }
+        })
+        .catch(error => {
+            console.error('Error checking notification:', error);
+        });
+}
+
+// Check notifications every 30 seconds
+setInterval(checkExpenseNotification, 30000);
+
+// Initial check
+document.addEventListener('DOMContentLoaded', checkExpenseNotification);
+
+// Close notification when clicking the close button
+document.querySelector('.notification-close').addEventListener('click', () => {
+    document.getElementById('notification-popup').style.display = 'none';
+});
+
+// Also check notifications when adding a transaction
+document.getElementById('saveTransaction').addEventListener('click', () => {
+    setTimeout(checkExpenseNotification, 1000); // Check after transaction is saved
+});
+</script>
+</body>
+</html>

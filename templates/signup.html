@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - FinTrack</title>
+    <link href="{{ url_for('static', filename='login.css') }}" rel="stylesheet" />
+    <style>
+        .signup-container {
+            display: flex;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+            max-width: 900px;
+            width: 100%;
+            margin: 40px auto;
+        }
+
+        .signup-left {
+            background: #0047AB;
+            color: white;
+            padding: 40px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .signup-left h2 {
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .signup-left p {
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .signup-left ul {
+            list-style: none;
+            margin: 20px 0;
+        }
+
+        .signup-left li {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+
+        .signup-left li:before {
+            content: "✓";
+            margin-right: 10px;
+            color: #4CAF50;
+        }
+
+        .signup-right {
+            padding: 40px;
+            flex: 1;
+        }
+
+        .signup-right h2 {
+            margin-bottom: 25px;
+            color: #333;
+            font-size: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #0047AB;
+        }
+
+        .form-group input.error {
+            border-color: #e74c3c;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .password-requirements {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        button[type="submit"] {
+            width: 100%;
+            padding: 12px;
+            background-color: #0047AB;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button[type="submit"]:hover {
+            background-color: #00378a;
+        }
+
+        .login-link {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        .login-link a {
+            color: #0047AB;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .signup-container {
+                flex-direction: column;
+            }
+
+            .signup-left, .signup-right {
+                padding: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <div class="signup-container">
+            <div class="signup-left">
+                <h2>Join FinTrack Today</h2>
+                <p>Take control of your finances with our powerful personal finance tracking tools.</p>
+                <ul>
+                    <li>Track your income and expenses</li>
+                    <li>Set and achieve financial goals</li>
+                    <li>Get personalized insights</li>
+                    <li>Monitor your spending habits</li>
+                </ul>
+            </div>
+            <div class="signup-right">
+                <h2>Create Your Account</h2>
+                <form method="POST" action="/signup" id="signupForm">
+                    <div class="form-group">
+                        <label for="firstname">First Name</label>
+                        <input type="text" id="firstname" name="firstname" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="lastname">Last Name</label>
+                        <input type="text" id="lastname" name="lastname" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username" required>
+                        <div class="error-message" id="usernameError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" required>
+                        <div class="password-requirements">
+                            Password must be at least 8 characters long
+                        </div>
+                        <div class="error-message" id="passwordError"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="balance">Starting Balance ($)</label>
+                        <input type="number" id="balance" name="balance" step="0.01" min="0" required>
+                        <div class="error-message" id="balanceError"></div>
+                    </div>
+
+                    <button type="submit">Sign Up</button>
+
+                    {% with messages = get_flashed_messages() %}
+                        {% if messages %}
+                            <div class="error-message" style="display: block; margin-top: 15px;">
+                                {% for message in messages %}
+                                    <p>{{ message }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+
+                    <p class="login-link">
+                        Already have an account? <a href="/">Log in</a>
+                    </p>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.getElementById('signupForm').addEventListener('submit', function(e) {
+            let isValid = true;
+            
+            // Validate username
+            const username = document.getElementById('username').value;
+            const usernameError = document.getElementById('usernameError');
+            if (username.length < 3) {
+                usernameError.textContent = 'Username must be at least 3 characters long';
+                usernameError.style.display = 'block';
+                isValid = false;
+            } else {
+                usernameError.style.display = 'none';
+            }
+
+            // Validate password
+            const password = document.getElementById('password').value;
+            const passwordError = document.getElementById('passwordError');
+            if (password.length < 8) {
+                passwordError.textContent = 'Password must be at least 8 characters long';
+                passwordError.style.display = 'block';
+                isValid = false;
+            } else {
+                passwordError.style.display = 'none';
+            }
+
+            // Validate balance
+            const balance = document.getElementById('balance').value;
+            const balanceError = document.getElementById('balanceError');
+            if (isNaN(balance) || parseFloat(balance) < 0) {
+                balanceError.textContent = 'Please enter a valid balance amount';
+                balanceError.style.display = 'block';
+                isValid = false;
+            } else {
+                balanceError.style.display = 'none';
+            }
+
+            if (!isValid) {
+                e.preventDefault();
+            }
+        });
+    </script>
+</body>
+</html>
